@@ -1,51 +1,51 @@
-# PipeWatch Configuration Example
-# Copy this file to config.yaml and customize for your pipelines
+# pipewatch example configuration
+# Copy to config.yaml and fill in your values.
 
-# Logging level: DEBUG, INFO, WARNING, ERROR
-log_level: INFO
-
-# Pipeline definitions
-pipelines:
-  # Example: Check if a Python ETL script runs successfully
-  - name: daily_etl_job
-    check_command: python /path/to/check_etl_status.py
-    check_interval: 300  # Check every 5 minutes (in seconds)
-    timeout: 30  # Command timeout in seconds
-    enabled: true
-
-  # Example: Check if a database backup completed
-  - name: database_backup
-    check_command: /scripts/check_backup.sh
-    check_interval: 3600  # Check every hour
-    timeout: 60
-    enabled: true
-
-  # Example: Verify data freshness in a table
-  - name: data_freshness_check
-    check_command: psql -c "SELECT check_data_freshness();"
-    check_interval: 600  # Check every 10 minutes
-    timeout: 30
-    enabled: false  # Disabled by default
-
-# Slack notifications (optional)
 slack:
   enabled: true
-  webhook_url: https://hooks.slack.com/services/YOUR/WEBHOOK/URL
-  channel: "#pipeline-alerts"  # Optional: override webhook default
-  username: PipeWatch  # Bot display name
+  webhook_url: "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
 
-# Email notifications (optional)
 email:
-  enabled: true
-  smtp_host: smtp.gmail.com
+  enabled: false
+  smtp_host: "smtp.example.com"
   smtp_port: 587
-  smtp_user: your-email@gmail.com
-  smtp_password: your-app-password  # Use environment variable in production!
-  from_email: pipewatch-alerts@example.com
-  to_emails:
-    - devops-team@example.com
-    - data-team@example.com
+  username: "alerts@example.com"
+  password: "secret"
+  from_addr: "alerts@example.com"
+  to_addrs:
+    - "oncall@example.com"
 
-# Note: For production, use environment variables for sensitive data:
-# smtp_password: ${SMTP_PASSWORD}
-# webhook_url: ${SLACK_WEBHOOK_URL}
+# Alert rules — evaluated after every check using recent history.
+alert_rules:
+  - name: single_failure
+    consecutive_failures: 1          # fire on first failure
+    pipelines: []                    # empty = applies to all pipelines
+
+  - name: repeated_failures
+    consecutive_failures: 3          # fire only after 3 failures in a row
+
+  - name: high_failure_rate
+    failure_rate_threshold: 0.5      # fire when >=50% of recent checks failed
+    consecutive_failures: 99         # effectively disabled for this rule
+    pipelines:
+      - critical_etl
+
+pipelines:
+  - name: daily_sales_etl
+    command: "python etl/sales.py"
+    schedule_seconds: 3600
+    enabled: true
+    retry:
+      attempts: 3
+      delay_seconds: 30
+      backoff: 2.0
+
+  - name: critical_etl
+    command: "python etl/critical.py"
+    schedule_seconds: 900
+    enabled: true
+
+  - name: weekly_report
+    command: "python reports/weekly.py"
+    schedule_seconds: 604800
+    enabled: false
