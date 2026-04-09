@@ -1,69 +1,65 @@
-"""Evaluates alert rules against recent history and dispatches notifications."""
+"""AlertManager — evaluate alert rules and dispatch notifications.
+
+Now integrates DeduplicationStore so identical alerts are not re-sent
+within the configured dedup window.
+"""
+
 from __future__ import annotations
 
-import logging
 from typing import List, Optional
 
 from pipewatch.alert_rules import AlertRule
+from pipewatch.config import Config
+from pipewatch.deduplication import DeduplicationStore
 from pipewatch.history import CheckHistory
 from pipewatch.monitor import CheckResult
 from pipewatch.notifiers.slack import SlackNotifier
-from pipewatch.notifiers.email import EmailNotifier
-from pipewatch.config import Config
-
-logger = logging.getLogger(__name__)
 
 
 class AlertManager:
-    """Checks alert rules and fires notifiers when conditions are met."""
+    """Evaluates alert rules against recent history and dispatches alerts."""
 
     def __init__(
         self,
-        rules: List[AlertRule],
-        history: CheckHistory,
         config: Config,
-        lookback: int = 10,
+        history: CheckHistory,
+        rules: Optional[List[AlertRule]] = None,
+        dedup_store: Optional[DeduplicationStore] = None,
     ) -> None:
-        self._rules = rules
-        self._history = history
         self._config = config
-        self._lookback = lookback
-        self._slack: Optional[SlackNotifier] = (
-            SlackNotifier(config.slack) if config.slack and config.slack.enabled else None
-        )
-        self._email: Optional[EmailNotifier] = (
-            EmailNotifier(config.email) if config.email and config.email.enabled else None
+        self._history = history
+        self._rules: List[AlertRule] = rules or [AlertRule()]
+        self._dedup = dedup_store or DeduplicationStore(
+            window_seconds=config.dedup_window_seconds
+            if hasattr(config, "dedup_window_seconds")
+            else 3600
         )
 
     def evaluate(self, result: CheckResult) -> None:
-        """Evaluate all applicable rules for a freshly-recorded result."""
-        recent = self._history.get_recent(result.pipeline_name, limit=self._lookback)
+        """Check rules for *result* and dispatch if warranted and not a duplicate."""
+        recent = self._history.get_recent(result.pipeline_name, limit=10)
         for rule in self._rules:
             if not rule.applies_to(result.pipeline_name):
                 continue
             if rule.should_alert(recent):
-                logger.info(
-                    "Alert rule '%s' triggered for pipeline '%s'",
-                    rule.name,
-                    result.pipeline_name,
+                alert_key = DeduplicationStore.make_key(
+                    result.pipeline_name, result.error_message
                 )
-                self._dispatch(rule, result)
+                if self._dedup.is_duplicate(alert_key):
+                    return
+                self._dispatch(result)
+                self._dedup.record(alert_key)
+                return
 
-    def _dispatch(self, rule: AlertRule, result: CheckResult) -> None:
+    def _dispatch(self, result: CheckResult) -> None:
         """Send notifications via all configured notifiers."""
-        subject = f"[pipewatch] Alert: {rule.name} — {result.pipeline_name}"
-        body = (
-            f"Alert rule '{rule.name}' was triggered for pipeline "
-            f"'{result.pipeline_name}'.\n"
-            f"Last error: {result.error_message or 'N/A'}"
+        pipeline_cfg = next(
+            (p for p in self._config.pipelines if p.name == result.pipeline_name),
+            None,
         )
-        if self._slack:
-            try:
-                self._slack.send(result)
-            except Exception as exc:  # pragma: no cover
-                logger.error("Slack notification failed: %s", exc)
-        if self._email:
-            try:
-                self._email.send(result)
-            except Exception as exc:  # pragma: no cover
-                logger.error("Email notification failed: %s", exc)
+        if pipeline_cfg is None:
+            return
+
+        if self._config.slack and getattr(pipeline_cfg, "notify_slack", True):
+            notifier = SlackNotifier(self._config.slack)
+            notifier.send(result)
