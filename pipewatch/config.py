@@ -56,20 +56,34 @@ class Config:
         with open(path, 'r') as f:
             data = yaml.safe_load(f)
         
+        if not isinstance(data, dict):
+            raise ValueError(f"Config file must contain a YAML mapping, got: {type(data).__name__}")
+
         return cls.from_dict(data)
     
     @classmethod
     def from_dict(cls, data: Dict) -> "Config":
         """Create Config from dictionary."""
-        pipelines = [PipelineConfig(**p) for p in data.get('pipelines', [])]
+        pipelines = []
+        for p in data.get('pipelines', []):
+            try:
+                pipelines.append(PipelineConfig(**p))
+            except TypeError as e:
+                raise ValueError(f"Invalid pipeline configuration: {e}") from e
         
         slack = None
         if 'slack' in data:
-            slack = SlackConfig(**data['slack'])
+            try:
+                slack = SlackConfig(**data['slack'])
+            except TypeError as e:
+                raise ValueError(f"Invalid Slack configuration: {e}") from e
         
         email = None
         if 'email' in data:
-            email = EmailConfig(**data['email'])
+            try:
+                email = EmailConfig(**data['email'])
+            except TypeError as e:
+                raise ValueError(f"Invalid email configuration: {e}") from e
         
         return cls(
             pipelines=pipelines,
