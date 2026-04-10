@@ -64,3 +64,16 @@ class SuppressionStore:
             (pipeline_name,),
         )
         self._conn.commit()
+
+    def all_suppressed(self, cooldown_seconds: int) -> list[str]:
+        """Return a list of pipeline names currently within the cooldown window.
+
+        Useful for diagnostics or admin tooling to inspect which pipelines
+        are actively suppressed at a given moment.
+        """
+        cutoff = time.time() - cooldown_seconds
+        rows = self._conn.execute(
+            "SELECT pipeline_name FROM suppression WHERE last_alerted_at > ?",
+            (cutoff,),
+        ).fetchall()
+        return [row[0] for row in rows]
