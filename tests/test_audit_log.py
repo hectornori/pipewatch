@@ -64,3 +64,18 @@ def test_entries_ordered_by_ts_descending(log):
     entries = log.get_recent("pipe_a")
     timestamps = [e.ts for e in entries]
     assert timestamps == sorted(timestamps, reverse=True)
+
+
+def test_get_recent_unknown_pipeline_returns_empty(log):
+    """Records for other pipelines should not appear for an unknown pipeline name."""
+    log.record("check", "pipe_a", "ok=True")
+    assert log.get_recent("nonexistent_pipe") == []
+
+
+def test_get_all_ordered_by_ts_descending(log):
+    """get_all() should return entries newest-first across all pipelines."""
+    log.record("check", "pipe_a", "ok=True")
+    log.record("alert", "pipe_b", "sent")
+    entries = log.get_all()
+    timestamps = [e.ts for e in entries]
+    assert timestamps == sorted(timestamps, reverse=True)
