@@ -1,11 +1,20 @@
-"""Notifier sub-package for pipewatch."""
-from pipewatch.notifiers.slack import SlackNotifier
-from pipewatch.notifiers.email import EmailNotifier
-from pipewatch.notifiers.template_notifier import TemplateNotifier, template_notifier_from_config
+"""Notifier sub-package.
 
-__all__ = [
-    "SlackNotifier",
-    "EmailNotifier",
-    "TemplateNotifier",
-    "template_notifier_from_config",
-]
+Exports the lightweight Notifier protocol used by all concrete notifier
+implementations so callers can import it from a single location.
+"""
+from __future__ import annotations
+
+from typing import Protocol, runtime_checkable
+
+
+@runtime_checkable
+class Notifier(Protocol):
+    """Minimal interface every notifier must satisfy."""
+
+    def send(self, result: object) -> None:
+        """Send a notification for *result*."""
+        ...
+
+
+__all__ = ["Notifier"]
