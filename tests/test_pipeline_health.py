@@ -61,6 +61,28 @@ def test_consecutive_failures_only_trailing():
     assert hs.consecutive_failures == 2
 
 
+def test_single_passing_result():
+    """A single successful check should yield a perfect score with no failures."""
+    hs = compute_health("pipe", [_r(True)])
+    assert hs.score == 1.0
+    assert hs.passed == 1
+    assert hs.failed == 0
+    assert hs.consecutive_failures == 0
+    assert hs.grade == "A"
+    assert hs.is_healthy is True
+
+
+def test_single_failing_result():
+    """A single failing check should yield a zero score with one consecutive failure."""
+    hs = compute_health("pipe", [_r(False)])
+    assert hs.score == 0.0
+    assert hs.passed == 0
+    assert hs.failed == 1
+    assert hs.consecutive_failures == 1
+    assert hs.grade == "F"
+    assert hs.is_healthy is False
+
+
 def test_grade_boundaries():
     assert HealthScore("p", 0.9, 10, 9, 1, 0).grade == "A"
     assert HealthScore("p", 0.75, 4, 3, 1, 0).grade == "B"
