@@ -35,6 +35,11 @@ def circuit_breaker_config_from_dict(data: Dict[str, Any]) -> CircuitBreakerConf
     Only keys that correspond to constructor parameters are forwarded;
     unknown keys are silently ignored.
 
+    Raises:
+        TypeError: If *data* is not a mapping.
+        ValueError: If a value cannot be coerced to the expected type, or
+            fails the range checks defined in :class:`CircuitBreakerConfig`.
+
     Example YAML section::
 
         circuit_breaker:
@@ -42,11 +47,20 @@ def circuit_breaker_config_from_dict(data: Dict[str, Any]) -> CircuitBreakerConf
           recovery_timeout: 120
           enabled: true
     """
-    return CircuitBreakerConfig(
-        failure_threshold=int(data.get("failure_threshold", 3)),
-        recovery_timeout=float(data.get("recovery_timeout", 60.0)),
-        enabled=bool(data.get("enabled", True)),
-    )
+    if not isinstance(data, dict):
+        raise TypeError(
+            f"Expected a dict for circuit breaker config, got {type(data).__name__!r}"
+        )
+    try:
+        return CircuitBreakerConfig(
+            failure_threshold=int(data.get("failure_threshold", 3)),
+            recovery_timeout=float(data.get("recovery_timeout", 60.0)),
+            enabled=bool(data.get("enabled", True)),
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            f"Invalid circuit breaker configuration: {exc}"
+        ) from exc
 
 
 def wrap_with_circuit_breaker(
