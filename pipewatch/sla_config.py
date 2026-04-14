@@ -20,6 +20,17 @@ class SLAWindow:
             start = datetime.now(timezone.utc)
         return start + timedelta(minutes=self.max_duration_minutes)
 
+    def is_breached(self, start: datetime, now: Optional[datetime] = None) -> bool:
+        """Return True if the SLA deadline has passed relative to *now*.
+
+        Args:
+            start: The datetime when the pipeline run began.
+            now:   The current time to check against; defaults to UTC now.
+        """
+        if now is None:
+            now = datetime.now(timezone.utc)
+        return now > self.deadline_from(start)
+
 
 def sla_window_from_dict(pipeline_name: str, data: Dict[str, Any]) -> Optional[SLAWindow]:
     """Parse an SLAWindow from a pipeline config dict, or return None."""
