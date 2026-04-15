@@ -49,3 +49,19 @@ class RunbookEnrichedNotifier:
         self.runbook_store.upsert(
             RunbookEntry(pipeline_name=pipeline_name, url=url, description=description)
         )
+
+    def unregister(self, pipeline_name: str) -> bool:
+        """Remove a runbook entry for the given pipeline.
+
+        Parameters
+        ----------
+        pipeline_name:
+            The name of the pipeline whose runbook entry should be removed.
+
+        Returns
+        -------
+        bool
+            ``True`` if an entry was found and removed, ``False`` if no entry
+            existed for the given pipeline name.
+        """
+        return self.runbook_store.delete(pipeline_name)
