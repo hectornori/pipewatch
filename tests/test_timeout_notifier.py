@@ -98,11 +98,8 @@ def test_send_logs_warning_on_timeout(result: _FakeResult, caplog: pytest.LogCap
 # ---------------------------------------------------------------------------
 
 
-def test_send_raises_when_inner_raises(result: _FakeResult) -> None:
-    class _BrokenNotifier:
-        def send(self, r) -> None:  # noqa: ANN001
-            raise RuntimeError("boom")
-
-    notifier = TimeoutNotifier(inner=_BrokenNotifier(), timeout_seconds=2.0)
-    with pytest.raises(RuntimeError, match="boom"):
+def test_send_propagates_inner_exception(notifier: TimeoutNotifier, inner: MagicMock, result: _FakeResult) -> None:
+    """Exceptions raised by the inner notifier should propagate to the caller."""
+    inner.send.side_effect = RuntimeError("downstream failure")
+    with pytest.raises(RuntimeError, match="downstream failure"):
         notifier.send(result)
