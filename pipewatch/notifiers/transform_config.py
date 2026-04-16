@@ -67,6 +67,19 @@ def build_transform(name: str, **options) -> Callable[[object], object]:
     return _BUILTIN_TRANSFORMS[name](**options)
 
 
+def list_transforms() -> list[str]:
+    """Return a sorted list of all registered built-in transform names.
+
+    Useful for introspection and generating help/documentation at runtime.
+
+    Returns
+    -------
+    list[str]
+        Sorted list of transform names, e.g. ``['add_env_tag', 'identity', 'redact_error']``.
+    """
+    return sorted(_BUILTIN_TRANSFORMS)
+
+
 def wrap_with_transform(inner: Notifier, config: dict) -> PayloadTransformer:
     """Build a :class:`PayloadTransformer` from a config dict.
 
