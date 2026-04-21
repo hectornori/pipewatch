@@ -57,9 +57,23 @@ def test_from_dict_string_coerced_to_int():
     assert cfg.min_failures == 2
 
 
+def test_from_dict_unknown_keys_are_ignored():
+    """Extra keys in the config dict should not raise an error."""
+    cfg = noise_filter_config_from_dict({"min_failures": 4, "unknown_key": "value"})
+    assert cfg.min_failures == 4
+
+
 def test_wrap_with_noise_filter_returns_notifier():
     inner = _FakeNotifier()
     notifier = wrap_with_noise_filter(inner, {"min_failures": 2})
     assert isinstance(notifier, NoiseFilterNotifier)
     assert notifier.min_failures == 2
     assert notifier.inner is inner
+
+
+def test_wrap_with_noise_filter_default_config():
+    """wrap_with_noise_filter should use default config when given an empty dict."""
+    inner = _FakeNotifier()
+    notifier = wrap_with_noise_filter(inner, {})
+    assert isinstance(notifier, NoiseFilterNotifier)
+    assert notifier.min_failures == 3
